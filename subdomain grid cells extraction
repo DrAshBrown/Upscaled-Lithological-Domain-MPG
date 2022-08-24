@@ -1,0 +1,38 @@
+import pandas as pd
+import numpy as np
+import random
+pd.__version__
+
+import os
+os.getcwd()
+
+#initializing input parameters
+x_cell_fine=700 #total fine cells in one layer along x-direction
+z_cell_fine=660 #total fine cells in one layer along z-direction
+x_size_coarse=14 #length of a coarse scale grid cell in m
+z_size_coarse=3 #thickness of a coarse scale grid cell in m
+x_size_fine=1 #length of a fine scale grid cell in m
+z_size_fine=0.05 #thickness of a fine scale grid cell in m
+x_cell_coarse=50 #total number of coarse scale grid cell in one layer along x-direction
+z_cell_coarse=11 #total number of coarse scale grid cells in one layer along z-direction
+
+df = pd.read_csv('Otway_2D.csv') #reading the input fine scale reservoir model
+
+#input starting index of a fine scale cell at the bottom left corner of the corresponding coarse scale cell
+index= 378630 
+
+#define data frame to store output parameters
+df_out1 = pd.DataFrame(columns=['Cell_ID','Rock_ID','Rock_Type','Kh','Kv','Porosity'])
+
+#loops for referring to fine scale cells within a coarse scale cell along z- and x-directions, respectively
+for k in range(int(z_size_coarse/z_size_fine)): 
+    for i in range(index,index+int(x_size_coarse/x_size_fine)):  
+        
+              #extracting information of the current fine cell
+df_out1 = df_out1.append({'Cell_ID':df["Cell_ID"][i],'Rock_ID':df["Rock_ID"][i],'Rock_Type':df["Rock_Type"][i],'Kh':df["Kh"][i],'Kv':df["Kv"][i], 'Porosity':df["Porosity"][i]},ignore_index=True)
+
+    
+    index+=x_cell_fine #updating cell index to the next fine cell on the right along x-direction
+
+
+df_out1.to_csv('14x3.csv') #output
