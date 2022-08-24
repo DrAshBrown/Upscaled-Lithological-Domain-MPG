@@ -1,0 +1,103 @@
+import pandas as pd
+import numpy as np
+import random
+pd.__version__
+
+import os
+os.getcwd()
+
+#input parameter block
+x_cell_fine=700 #total fine cells in one layer along x-direction
+z_cell_fine=660 #total fine cells in one layer along z-direction
+x_size_coarse=14 #length of a coarse scale grid cell in m
+z_size_coarse=3 #thickness of a coarse scale grid cell in m
+x_size_fine=1 #length of a fine scale grid cell in m
+z_size_fine=0.05 #thickness of a fine scale grid cell in m
+x_cell_coarse=50 #total number of coarse scale grid cell in one layer along x-direction
+z_cell_coarse=11 #total number of coarse scale grid cells in one layer along z-direction
+total_cell_coarse=(x_size_coarse/x_size_fine)*(z_size_coarse/z_size_fine) #total number of fine cells in 1 coarse scale grid cell
+
+df = pd.read_csv("Otway_2D.csv") #reading high resolution reservoir model 
+
+#initializing output parameters
+neigh =0 #parameter to count neighbours with similar lithology as that of the current cell
+index= 0 #parameter to track the location, or index, of a fine cell within a coarse cell; varies from 0 to 13 in x-direction for the bottom-most layer followed by 14 to 27 for the next layer in z-direction
+b_total=0 #total fine scale baffle cells in a coarse scale grid cell
+r_total=0 #total fine scale reservoir cells in a coarse scale grid cell
+b_high=0 #total number of baffle cells with >50% (>=2 for a 2D model with 4 neighbours) baffle neighbours
+r_high=0 #total number of reservoir cells with >50% (>=2 for a 2D model with 4 neighbours) reservoir neighbours
+
+#defining output data frame
+df_out1 = pd.DataFrame(columns=['index','b_total','r_total','b_high','r_high','B_good','R_good'])
+
+#calculation of baffle proportion, baffle coherence and reservoir rock coherence for each coarse scale grid cell
+#loops for updating index to the next coarse scale grid cell in z-direction and x-direction
+for k_out in range(int(z_cell_coarse)):  
+    for i_out in range(int(x_cell_coarse)):
+
+#loops for updating index to the next fine scale grid cell in z-direction and x-direction
+        for k in range(int(z_size_coarse/z_size_fine)): 
+            for i in range(index,index+int(x_size_coarse/x_size_fine)):  
+
+#counting total baffles and reservoir rocks in one coarse scale grid cell
+                if df["Rock_Type"][i] == 'B':   
+                    b_total+=1
+                else:
+                    r_total+=1
+
+                #counting total baffle neighbours in the 4 direction if the current grid cell is a baffle
+                neigh=0
+                if df["Rock_Type"][i] == 'B': #check if the current cell is a baffle
+                    if (i+1)%x_cell_fine != 0: #check for cells on the rightmost boundary of fine scale model
+                        if df["Rock_Type"][i+1] == 'B': #check for right neighbour cell
+                            neigh+=1
+                    if i%x_cell_fine != 0: #check for cells on the leftmost boundary of fine scale model
+                        if df["Rock_Type"][i-1] == 'B': #check for left neighbour cell
+                            neigh+=1 
+                    if (i+x_cell_fine)<((x_cell_fine*z_cell_fine)): #check for cells on the topmost boundary of fine scale model
+                        if df["Rock_Type"][i+x_cell_fine] == 'B': #check for top neighbour
+                            neigh+=1 
+                    if i>(x_cell_fine-1): #check for cells on the bottommost boundary of fine scale model
+                        if df["Rock_Type"][i-x_cell_fine] == 'B': #check for bottom neighbour
+                            neigh+=1 
+                if neigh>=2: #check for high coherence of baffle cell at the current index
+                    b_high+=1
+
+#counting total reservoir rock neighbours in the 4 direction if the current grid cell is a reservoir                 neigh=0
+                if df["Rock_Type"][i] == 'R': #check if the current cell is a reservoir
+                    if (i+1)%x_cell_fine != 0: #check for cells on the rightmost boundary of fine scale model
+                        if df["Rock_Type"][i+1] == 'R': #check for right neighbour cell
+                            neigh+=1
+                    if i%x_cell_fine != 0: : #check for cells on the leftmost boundary of fine scale model
+                        if df["Rock_Type"][i-1] == 'R': #check for left neighbour cell
+                            neigh+=1 
+                    if (i+x_cell_fine)<((x_cell_fine*z_cell_fine)): #check for cells on the topmost boundary of fine scale model
+                        if df["Rock_Type"][i+x_cell_fine] == 'R': #check for top neighbour
+                            neigh+=1 
+                    if i>(x_cell_fine-1): #check for cells on the bottommost boundary of fine scale model
+                        if df["Rock_Type"][i-x_cell_fine] == 'R': #check for bottom neighbour
+                            neigh+=1 
+                if neigh>=2: check for high coherence of reservoir rock cell at the current index
+                    r_high+=1   
+
+            index+=x_cell_fine #updating the cell index to the next fine scale cell within 1 coarse scale cell along x-direction
+        #updating the cell index to the next fine scale cell in the next layer within 1 coarse scale cell along z-direction
+        index1=index-int((x_cell_coarse*(x_size_coarse/x_size_fine)*(z_size_coarse/z_size_fine)))
+
+        #writing output parameters (baffle proportion, baffle coherence, reservoir rock coherence) to a data frame
+        df_out1=df_out1.append({'index':index1,'b_total':b_total/total_cell_coarse,'r_total':r_total/total_cell_coarse,'b_high':b_high/total_cell_coarse,'r_high':r_high/total_cell_coarse}, ignore_index=True)
+
+        #updating output parameters to 0 for the next coarse scale cell
+        b_total=0 
+        r_total=0
+        b_high=0
+        r_high=0
+
+     #updating cell index to the next coarse scale grid cell in x-direction
+        index=(index-int((x_cell_coarse*(x_size_coarse/x_size_fine)*(z_size_coarse/z_size_fine))))+int(x_cell_fine/x_cell_coarse)    
+    
+    #updating cell index to the next coarse scale grid cell in the next layer along z-direction
+    index=(index-int(x_cell_fine)+int((x_cell_coarse*(x_size_coarse/x_size_fine)*(z_size_coarse/z_size_fine))))
+           
+#output the dataframe
+df_out1.to_csv('2D_14x3_New.csv')
